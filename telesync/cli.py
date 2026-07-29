@@ -5,8 +5,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import time
 
-from telethon import TelegramClient, events
+from telethon import TelegramClient, events, utils
 from telethon.tl import types
 
 from .botapi import BotAPI, BotAPIError, adapt_chat
@@ -14,7 +15,18 @@ from .botsync import run_updates
 from .config import Config, ConfigError, LAYOUTS, load_config
 from .render import DEFAULT_DAYFILE, DEFAULT_FILENAME, DEFAULT_FOLDER, PLACEHOLDERS
 from .state import State
-from .sync import Reactor, channel_key, resolve_channel, sync_channel, write_message
+from .sync import (
+    Reactor,
+    channel_key,
+    reaction_target,
+    resolve_channel,
+    sync_channel,
+    write_message,
+)
+
+# How long after writing a note reaction updates for that message are ignored,
+# so the Reactor's own 🦄 cannot re-trigger the write it marks.
+REACTION_COOLDOWN = 60.0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,6 +54,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     common.add_argument(
         "--react-emoji", metavar="EMOJI", help="reaction to leave on synced messages (default 🦄)",
+    )
+    common.add_argument(
+        "--react-edit-emoji", metavar="EMOJI",
+        help="reaction when re-syncing an edited message (default 👾)",
     )
     common.add_argument(
         "--folder-format", metavar="TPL",
@@ -339,16 +355,45 @@ async def cmd_watch(cfg: Config, *, limit: int | None, backfill: bool) -> int:
             except Exception as exc:
                 print(f"  ! {ref}: {exc}", file=sys.stderr)
 
+    me = await client.get_me()
+    peer_map = {utils.get_peer_id(c): c for c in chats}
+    written_at: dict[tuple[int, int], float] = {}
+
     async def handle(event) -> None:
         chat = await event.get_chat()
         path = await write_message(client, event.message, chat, cfg, reactor)
         if path:
             print(f"  + {path.relative_to(cfg.out_dir)}")
+        written_at[(utils.get_peer_id(chat), event.message.id)] = time.monotonic()
         state.record(channel_key(chat), last_id=event.message.id)
         state.save()
 
+    async def handle_reaction(update) -> None:
+        """A reaction on any watched message (re)writes its note — react to a
+        message in Telegram to pull it into the archive, however old it is."""
+        target = reaction_target(update, self_id=me.id)
+        if target is None:
+            return
+        peer_id, msg_id = target
+        chat = peer_map.get(peer_id)
+        if chat is None:
+            return
+        if time.monotonic() - written_at.get((peer_id, msg_id), -REACTION_COOLDOWN) < REACTION_COOLDOWN:
+            return
+        message = await client.get_messages(chat, ids=msg_id)
+        if message is None:
+            return
+        written_at[(peer_id, msg_id)] = time.monotonic()
+        path = await write_message(client, message, chat, cfg, reactor)
+        if path:
+            print(f"  ★ {path.relative_to(cfg.out_dir)}  (reaction)")
+
     client.add_event_handler(handle, events.NewMessage(chats=chats))
     client.add_event_handler(handle, events.MessageEdited(chats=chats))
+    client.add_event_handler(
+        handle_reaction,
+        events.Raw(types=(types.UpdateBotMessageReaction, types.UpdateMessageReactions)),
+    )
 
     print(f"Watching {len(chats)} chat(s) → {cfg.out_dir}   (Ctrl-C to stop)")
     try:

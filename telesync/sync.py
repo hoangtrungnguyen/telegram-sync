@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from telethon import TelegramClient
+from telethon import TelegramClient, utils
 from telethon.tl import types
 
 from .config import Config
@@ -39,16 +39,18 @@ class Reactor:
     def __init__(self, client, cfg: Config):
         self.client = client
         self.emoji = cfg.react_emoji
+        self.edit_emoji = cfg.react_edit_emoji
         self.enabled = cfg.react
         self.count = 0
 
-    async def react(self, chat, message_id: int) -> bool:
+    async def react(self, chat, message_id: int, *, edited: bool = False) -> bool:
         if not self.enabled:
             return False
+        emoji = self.edit_emoji if edited else self.emoji
         try:
             # the Bot API transport exposes its own reaction call
             if hasattr(self.client, "set_reaction"):
-                await self.client.set_reaction(chat, message_id, self.emoji)
+                await self.client.set_reaction(chat, message_id, emoji)
             else:
                 from telethon.tl.functions.messages import SendReactionRequest
 
@@ -56,7 +58,7 @@ class Reactor:
                     SendReactionRequest(
                         peer=chat,
                         msg_id=message_id,
-                        reaction=[types.ReactionEmoji(emoticon=self.emoji)],
+                        reaction=[types.ReactionEmoji(emoticon=emoji)],
                     )
                 )
         except Exception as exc:
@@ -65,6 +67,27 @@ class Reactor:
             return False
         self.count += 1
         return True
+
+
+def reaction_target(update, self_id: int | None = None) -> tuple[int, int] | None:
+    """(marked peer id, message id) if this raw update is a reaction worth
+    syncing, else None.
+
+    Skips reaction removals, and — for bot sessions, where Telegram names the
+    actor — the client's own reactions: the 🦄 the Reactor leaves would
+    otherwise re-trigger the very write it marks.
+    """
+    if isinstance(update, types.UpdateBotMessageReaction):
+        if self_id is not None and getattr(update.actor, "user_id", None) == self_id:
+            return None
+        if not update.new_reactions:
+            return None
+        return utils.get_peer_id(update.peer), update.msg_id
+    if isinstance(update, types.UpdateMessageReactions):
+        if not (getattr(update.reactions, "results", None) or []):
+            return None
+        return utils.get_peer_id(update.peer), update.msg_id
+    return None
 
 
 def channel_key(chat) -> str:
@@ -247,7 +270,9 @@ async def write_message(
         )
 
     if reactor is not None:
-        await reactor.react(chat, message.id)
+        await reactor.react(
+            chat, message.id, edited=bool(getattr(message, "edit_date", None))
+        )
     return path
 
 

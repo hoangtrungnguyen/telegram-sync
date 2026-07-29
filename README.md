@@ -44,6 +44,8 @@ Hello **world**
   polls, locations; UTF-16 offsets handled so emoji never shift the markup.
 - **Incremental** — resumes from a high-water mark per channel; `--recheck N`
   picks up edits.
+- **React to sync** — while `watch` runs, reacting to any message in Telegram
+  writes its note immediately, however old the message (MTProto login).
 - **One file per message, or per day** — day files merge on re-run instead of
   being overwritten.
 - **Optional media download** into `assets/`, linked from the note.

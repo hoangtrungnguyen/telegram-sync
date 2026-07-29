@@ -66,11 +66,13 @@ archive is append-only by design. Delete the note yourself if you want it gone.
 ## Reactions
 
 Every message written gets a 🦄 reaction in Telegram, which doubles as a visible
-"archived" marker in the chat.
+"archived" marker in the chat. A message re-synced after an edit gets 👾
+instead, so you can tell an updated note from a first sync at a glance.
 
 ```bash
 telesync sync --no-react           # off for this run
 telesync sync --react-emoji 👍     # something else
+telesync sync --react-edit-emoji 🔁   # different edit marker
 TELESYNC_REACT=false               # off by default
 ```
 
@@ -81,6 +83,20 @@ allowed to break archiving.
 
 Consider `--no-react` for a large `--full` backfill — one reaction per message
 across thousands of posts is a good way to meet a flood-wait.
+
+## React to sync
+
+The marker also works in the other direction: while `watch` is running, reacting
+to a message in Telegram — any emoji, however old the message — writes (or
+rewrites) its note immediately. Handy for pulling a single old post into the
+archive without a `--full` run, or for re-rendering one message after an edit.
+
+Requires an MTProto session (`TELEGRAM_API_ID`/`TELEGRAM_API_HASH`); the HTTP
+Bot API reports *that* a reaction happened but offers no way to fetch the
+message it landed on, so in bot-only mode `watch` prints a pointer instead.
+With a bot session the bot must be an admin of the chat to receive reaction
+updates, and the Reactor's own 🦄 is ignored so a write cannot re-trigger
+itself.
 
 ## Rate limits
 

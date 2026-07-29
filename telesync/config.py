@@ -39,6 +39,7 @@ class Config:
     recheck: int = 0
     react: bool = True
     react_emoji: str = "\U0001f984"  # 🦄
+    react_edit_emoji: str = "\U0001f47e"  # 👾 — marks a note rewritten after an edit
     folder_template: str = DEFAULT_FOLDER
     filename_template: str = DEFAULT_FILENAME
     dayfile_template: str = DEFAULT_DAYFILE
@@ -162,6 +163,11 @@ def load_config(args) -> Config:
             getattr(args, "react_emoji", None)
             or os.getenv("TELESYNC_REACT_EMOJI")
             or "\U0001f984"
+        ),
+        react_edit_emoji=(
+            getattr(args, "react_edit_emoji", None)
+            or os.getenv("TELESYNC_REACT_EDIT_EMOJI")
+            or "\U0001f47e"
         ),
         folder_template=folder_template,
         filename_template=filename_template,

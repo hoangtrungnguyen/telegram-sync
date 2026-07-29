@@ -166,3 +166,31 @@ async def test_custom_react_emoji(tmp_path):
     reactor = Reactor(api, cfg(tmp_path, react_emoji="👍"))
     await reactor.react(adapt_chat(CHAT), 3)
     assert api.calls[0][2] == "👍"
+
+
+async def test_edited_message_gets_edit_emoji(tmp_path):
+    api = FakeBotAPI()
+    reactor = Reactor(api, cfg(tmp_path))
+    chat = adapt_chat(CHAT)
+    await reactor.react(chat, 5)
+    await reactor.react(chat, 5, edited=True)
+    assert api.calls[0][2] == "\U0001f984"  # 🦄 first sync
+    assert api.calls[1][2] == "\U0001f47e"  # 👾 re-sync after edit
+
+
+async def test_network_timeout_wrapped_in_botapi_error(monkeypatch):
+    from telesync import botapi
+
+    def boom(*args, **kwargs):
+        raise TimeoutError("The read operation timed out")
+
+    monkeypatch.setattr(botapi.urllib.request, "urlopen", boom)
+    with pytest.raises(botapi.BotAPIError, match="timed out"):
+        await botapi.BotAPI("1:x").call("getUpdates")
+
+
+async def test_custom_edit_emoji(tmp_path):
+    api = FakeBotAPI()
+    reactor = Reactor(api, cfg(tmp_path, react_edit_emoji="🔁"))
+    await reactor.react(adapt_chat(CHAT), 6, edited=True)
+    assert api.calls[0][2] == "🔁"

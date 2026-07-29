@@ -74,6 +74,10 @@ class BotAPI:
             ) from exc
         except urllib.error.URLError as exc:
             raise BotAPIError(f"{method}: {exc.reason}") from exc
+        except OSError as exc:
+            # e.g. a socket read timing out mid-response; the polling loop
+            # retries on BotAPIError, so a network hiccup must not escape raw
+            raise BotAPIError(f"{method}: {exc}") from exc
         if not body.get("ok"):
             raise BotAPIError(f"{method}: {body.get('description')}")
         return body["result"]
@@ -107,7 +111,9 @@ class BotAPI:
             "getUpdates",
             offset=offset,
             timeout=timeout,
-            allowed_updates=list(UPDATE_KINDS),
+            # message_reaction must be requested explicitly; the Bot API never
+            # delivers it by default.
+            allowed_updates=list(UPDATE_KINDS) + ["message_reaction"],
         )
 
     async def download_media(self, message, file: str) -> str | None:

@@ -88,6 +88,18 @@ async def run_updates(
 
         for update in updates:
             offset = update["update_id"] + 1
+            if reaction := update.get("message_reaction"):
+                # The Bot API tells us a message was reacted to but offers no
+                # way to fetch its content, so we can only point at MTProto.
+                chat = adapt_chat(reaction["chat"])
+                actor_id = (reaction.get("user") or {}).get("id")
+                if (chat_matches(chat, refs) and actor_id != me.id
+                        and reaction.get("new_reaction")):
+                    print(f"  ! reaction on message {reaction['message_id']} in"
+                          f" {chat.title} — the Bot API cannot fetch message content;"
+                          " set TELEGRAM_API_ID/TELEGRAM_API_HASH and run"
+                          " `telesync watch` to sync reacted messages")
+                continue
             for kind in UPDATE_KINDS:
                 raw_msg = update.get(kind)
                 if not raw_msg:
