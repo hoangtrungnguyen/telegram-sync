@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -211,6 +212,10 @@ def write_per_message(
         for stale in ch_dir.glob("*.md"):
             if stale != path and stale.is_file() and id_token.search(stale.name):
                 stale.unlink()
+    # Media paths are relative to the channel dir; a nested folder template
+    # ("{channel}/{year}{month}{day}") puts the note deeper, so re-relativise.
+    if path.parent != ch_dir:
+        media_files = [os.path.relpath(ch_dir / rel, path.parent) for rel in media_files]
     path.write_text(render_document(message, chat, author, media_files), encoding="utf-8")
     return path
 
