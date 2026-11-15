@@ -53,3 +53,7 @@ jq '.channels' vault/.telesync-state.json                                       
 - **macOS Documents permission** was verified: a launchd-run process can read and write
   `~/Documents/Obsidian/03-TheClock/1-Log/{Seeding,Engineer}`.
 - Output lands in `vault/{seeding,engineer}` → symlinks into the Obsidian vault.
+- **Note layout** (`.env`, since 2026-11-15): `TELESYNC_FOLDER_FORMAT={channel}/{year}{month}{day}`,
+  `TELESYNC_FILENAME_FORMAT={title}` → `seeding/20261115/Pull up x 30.md`. Notes before that date keep
+  the default `{date}-{time}-{id}-{slug}.md`. Same title on one day overwrites; edits leave the old
+  file — add `{id}` to the filename template if that bites.
