@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.trungnguyenhoang.telesync-watch</string>
+
+    <!-- Telegram → Obsidian watcher (tele-sync, IdeaProjects copy). -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/trungnguyenhoang/.local/bin/uv</string>
+        <string>run</string>
+        <string>telesync</string>
+        <string>watch</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/trungnguyenhoang/IdeaProjects/telegram-sync</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/trungnguyenhoang/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+
+    <!-- Start at login, restart if it exits (network drop, crash). -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/trungnguyenhoang/IdeaProjects/telegram-sync/watch.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/trungnguyenhoang/IdeaProjects/telegram-sync/watch.log</string>
+</dict>
+</plist>
