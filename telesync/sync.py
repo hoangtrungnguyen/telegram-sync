@@ -26,6 +26,8 @@ from .render import (
 from .state import State
 
 BLOCK_RE = re.compile(r"<!-- telesync:(\d+) -->\n(.*?)(?=\n<!-- telesync:\d+ -->|\Z)", re.S)
+# Errors that mean "network is flaky", not "Telegram refused the reaction".
+_TRANSIENT = re.compile(r"timed out|timeout|connection reset|nodename nor servname|temporarily", re.I)
 
 
 class Reactor:
@@ -62,6 +64,11 @@ class Reactor:
                     )
                 )
         except Exception as exc:
+            # A network hiccup is not a reason to stop reacting for the rest
+            # of a watch that may run for days; only give up on real refusals.
+            if _TRANSIENT.search(str(exc)) or isinstance(exc, (TimeoutError, ConnectionError)):
+                print(f"  ! reaction on {message_id} skipped ({type(exc).__name__}: {exc})")
+                return False
             self.enabled = False
             print(f"  ! reactions disabled for this run ({type(exc).__name__}: {exc})")
             return False

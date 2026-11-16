@@ -194,3 +194,29 @@ async def test_custom_edit_emoji(tmp_path):
     reactor = Reactor(api, cfg(tmp_path, react_edit_emoji="🔁"))
     await reactor.react(adapt_chat(CHAT), 6, edited=True)
     assert api.calls[0][2] == "🔁"
+
+
+class FlakyBotAPI(FakeBotAPI):
+    """First call times out, later calls succeed."""
+
+    def __init__(self):
+        super().__init__()
+        self.first = True
+
+    async def set_reaction(self, chat, message_id, emoji):
+        if self.first:
+            self.first = False
+            raise RuntimeError("setMessageReaction: The read operation timed out")
+        await super().set_reaction(chat, message_id, emoji)
+
+
+async def test_reactor_survives_transient_network_error(tmp_path, capsys):
+    api = FlakyBotAPI()
+    reactor = Reactor(api, cfg(tmp_path))
+    chat = adapt_chat(CHAT)
+
+    assert await reactor.react(chat, 1) is False
+    assert reactor.enabled is True
+    assert "skipped" in capsys.readouterr().out
+    assert await reactor.react(chat, 2) is True
+    assert reactor.count == 1
