@@ -55,5 +55,5 @@ jq '.channels' vault/.telesync-state.json                                       
 - Output lands in `vault/{seeding,engineer}` → symlinks into the Obsidian vault.
 - **Note layout** (`.env`, since 2026-11-15): `TELESYNC_FOLDER_FORMAT={channel}/{year}{month}{day}`,
   `TELESYNC_FILENAME_FORMAT={title}` → `seeding/20261115/Pull up x 30.md`. Notes before that date keep
-  the default `{date}-{time}-{id}-{slug}.md`. Same title on one day overwrites; edits leave the old
-  file — add `{id}` to the filename template if that bites.
+  the default `{date}-{time}-{id}-{slug}.md`. Edits replace the note (stale copy found by its `id:`
+  frontmatter). Same title on one day still overwrites — add `{id}` to the template if that bites.
