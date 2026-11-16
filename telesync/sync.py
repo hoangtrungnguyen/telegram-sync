@@ -211,15 +211,36 @@ def write_per_message(
     ch_dir.mkdir(parents=True, exist_ok=True)
     path = ch_dir / message_filename(message, chat, author, template)
     path.parent.mkdir(parents=True, exist_ok=True)
-    # An edited message keeps its id but may change its slug: drop the stale file.
-    # Only possible when the id is part of the name — see README on templates.
-    if "{id}" in template:
-        id_token = re.compile(rf"(?<!\d){message.id}(?!\d)")
-        for stale in ch_dir.glob("*.md"):
-            if stale != path and stale.is_file() and id_token.search(stale.name):
-                stale.unlink()
+    # An edited message keeps its id but may change its title: drop the stale file
+    # so the edit replaces the note instead of sitting next to it.
+    for stale in _stale_notes(ch_dir, message.id, template, path):
+        stale.unlink()
     path.write_text(render_document(message, chat, author, media_files), encoding="utf-8")
     return path
+
+
+_FM_ID = re.compile(r"^id: (\d+)$", re.M)
+
+
+def _stale_notes(ch_dir: Path, message_id: int, template: str, keep: Path) -> list[Path]:
+    """Earlier notes for this message id in the same folder.
+
+    With {id} in the template the name is enough; otherwise fall back to the
+    `id:` frontmatter key of each note in the folder (small, so cheap).
+    """
+    id_token = re.compile(rf"(?<!\d){message_id}(?!\d)")
+    found = []
+    for p in ch_dir.glob("*.md"):
+        if p == keep or not p.is_file():
+            continue
+        if "{id}" in template:
+            if id_token.search(p.name):
+                found.append(p)
+            continue
+        head = p.read_text(encoding="utf-8")[:600]
+        if head.startswith("---") and (m := _FM_ID.search(head)) and int(m.group(1)) == message_id:
+            found.append(p)
+    return found
 
 
 def write_per_day(

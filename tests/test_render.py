@@ -183,3 +183,16 @@ def test_per_day_merges_and_orders(tmp_path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_edit_replaces_note_when_title_template_has_no_id(tmp_path):
+    chat = fake_chat()
+    first = write_per_message(fake_message("Breakfast", mid=7), chat, None, [], tmp_path, "{title}")
+    second = write_per_message(fake_message("Breakfast (100g)", mid=7), chat, None, [], tmp_path, "{title}")
+    assert not first.exists()          # stale note for id 7 removed
+    assert [p.name for p in tmp_path.glob("*.md")] == ["Breakfast (100g).md"]
+    # a different message with the old title is untouched by later edits of id 7
+    other = write_per_message(fake_message("Breakfast", mid=8), chat, None, [], tmp_path, "{title}")
+    write_per_message(fake_message("Breakfast (150g)", mid=7), chat, None, [], tmp_path, "{title}")
+    assert other.exists() and not second.exists()
+    assert sorted(p.name for p in tmp_path.glob("*.md")) == ["Breakfast (150g).md", "Breakfast.md"]
